@@ -27,7 +27,7 @@ _ui_header() {
   _ui_out "     █  ██▄ █▄▄ █▀█ █ ▀█ ██▄"$'\n'
   _ui_out "${C_RST}${C_DIM}    τέχνη · the craft of a well-run agent team for Claude Code${C_RST}"$'\n\n'
   local i done_bar="" todo_bar=""
-  for ((i=1;i<=UI_TOTAL;i++)); do if ((i<=UI_STEP)); then done_bar="$done_bar━━"; else todo_bar="$todo_bar──"; fi; done
+  for ((i=1;i<=UI_TOTAL;i++)); do if ((i<=UI_STEP)); then done_bar="${done_bar}━━"; else todo_bar="${todo_bar}──"; fi; done
   _ui_out "    ${C_ACC}${done_bar}${C_RST}${C_DIM}${todo_bar}  step ${UI_STEP}/${UI_TOTAL}${C_RST}"$'\n\n'
 }
 
