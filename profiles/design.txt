@@ -1,0 +1,17 @@
+# Design passes with Figma (any stack). Needs the Figma MCP registered as "figma" and the Figma plugin skills.
+app-bridge
+ui-researcher
+canvas-designer
+ui-layout-engineer
+type-designer
+color-designer
+a11y-designer
+design-reviewer
+better-accessibility
+better-colors
+color-expert
+better-layout
+better-ui
+better-typography
+better-interface
+better-writing
