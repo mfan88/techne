@@ -1,0 +1,2 @@
+# Docs: changelog entries, doc comments and named docs sections.
+docs-writer

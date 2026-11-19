@@ -1,0 +1,5 @@
+# Build: implement work orders from contracts (any stack; pair with --layers).
+feature-builder
+component-builder
+logic-builder
+wiring-builder

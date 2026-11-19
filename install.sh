@@ -3,7 +3,9 @@
 #   curl -fsSL https://raw.githubusercontent.com/mfan88/techne/main/install.sh | bash
 # With no options in a terminal, an interactive installer asks what you are building.
 # Options (any of these skips the menus):
-#   --profile LIST        comma-separated profiles/NAME.txt (default: all)
+#   --sections LIST       agent sections: design, api, build, testing, review, docs (default: all)
+#                         aliases: core = build,testing,review,docs · integrations = api
+#   --profile LIST        same as --sections
 #   --ref REF             git ref/tag to install (default: main)
 #   --from DIR            install from a local checkout instead of GitHub
 #   --global              install into ~/.claude instead of ./.claude
@@ -25,7 +27,7 @@ set -euo pipefail
 REPO="${TECHNE_REPO:-mfan88/techne}"
 REF="main"; PROFILE="all"; FROM=""; DEST=".claude"; FIGMA="figma"; DRY=0; LAYERS=""; RELEASE=""; NOPROMPT=0; MODE="large"; TRACKER="local"; LTEAM=""; LSERVER="linear"; BASE=""; KEEPMD=0; GLOBAL=0; CFG=0
 while [ $# -gt 0 ]; do case "$1" in
-  --profile) CFG=1; PROFILE="$2"; shift 2;;
+  --profile|--sections) CFG=1; PROFILE="$2"; shift 2;;
   --ref) REF="$2"; shift 2;;
   --from) FROM="$2"; shift 2;;
   --global) CFG=1; DEST="$HOME/.claude"; GLOBAL=1; shift;;
@@ -41,7 +43,7 @@ while [ $# -gt 0 ]; do case "$1" in
   --keep-claude-md) CFG=1; KEEPMD=1; shift;;
   --yes|-y) CFG=1; shift;;
   --dry-run) DRY=1; shift;;
-  -h|--help) sed -n '2,26p' "$0" 2>/dev/null || true; exit 0;;
+  -h|--help) sed -n '2,28p' "$0" 2>/dev/null || true; exit 0;;
   *) echo "unknown option: $1" >&2; exit 1;;
 esac; done
 
@@ -77,11 +79,14 @@ fi
 
 items=()
 if [ "$PROFILE" = "all" ]; then
-  for f in "$SRC"/agents/*.md; do items+=("$(basename "$f" .md)"); done
+  for f in "$SRC"/agents/*.md; do n=$(basename "$f" .md); [ "$n" = release-manager ] || items+=("$n"); done
   for d in "$SRC"/skills/*/; do items+=("$(basename "$d")"); done
 else
+  # Aliases from earlier versions: core = build,testing,review,docs; integrations = api.
+  PROFILE=$(printf '%s' "$PROFILE" | perl -pe 's/\bcore\b/build,testing,review,docs/g; s/\bintegrations\b/api/g')
   IFS=',' read -r -a profs <<< "$PROFILE"
   for pf in "${profs[@]}"; do
+    [ "$pf" = none ] && continue
     [ -f "$SRC/profiles/$pf.txt" ] || { echo "no profile: $pf" >&2; exit 1; }
     while IFS= read -r line || [ -n "$line" ]; do
       line="${line%%#*}"; line="$(echo "$line" | tr -d '[:space:]')"
@@ -94,6 +99,19 @@ fi
 if [ -n "$RELEASE" ] && [ "$RELEASE" != none ]; then
   case " ${items[*]-} " in *" release-manager "*) ;; *) items+=("release-manager");; esac
 fi
+
+# Which sections ended up installed (drives CLAUDE.md, PM-routing, AGENTS.md and /task).
+has() { case " ${items[*]-} " in *" $1 "*) return 0;; esac; return 1; }
+SECTIONS=""
+has canvas-designer && SECTIONS="$SECTIONS design"
+has api-integrator && SECTIONS="$SECTIONS api"
+{ has feature-builder || has logic-builder || has component-builder || has wiring-builder; } && SECTIONS="$SECTIONS build"
+{ has tester || has test-writer; } && SECTIONS="$SECTIONS testing"
+{ has final-reviewer || has code-reviewer; } && SECTIONS="$SECTIONS review"
+has docs-writer && SECTIONS="$SECTIONS docs"
+has release-manager && SECTIONS="$SECTIONS release"
+SECTIONS="${SECTIONS# }"
+export SECTIONS
 
 # Files that are not for Claude Code: Codex metadata everywhere, maintainer docs in color-expert.
 EXCLUDES=(--exclude 'openai.yaml' --exclude '.gitignore' --exclude '.DS_Store')
@@ -148,11 +166,11 @@ fi
 if [ "$GLOBAL" = 0 ]; then
   COMMITS=agents; [ "$MODE" = small ] && COMMITS=user
   LIN=""; [ "$TRACKER" = linear ] && LIN="(team \`${LTEAM:-<set team>}\`, MCP server \`$LSERVER\`)"
-  fill() { perl -pe "s|\{\{MODE\}\}|$MODE|g; s|\{\{TRACKER\}\}|$TRACKER|g; s|\{\{LINEAR\}\}|$LIN|g; s|\{\{BASE\}\}|$BASE|g; s|\{\{LAYERS\}\}|${LAYERS:-none}|g; s|\{\{RELEASE\}\}|${RELEASE:-none}|g; s|\{\{COMMITS\}\}|$COMMITS|g" "$1"; }
+  fill() { perl -0pe 's{<!-- if:(!?)([a-z]+) -->\n(.*?)<!-- endif -->\n}{ my ($n,$s,$b)=($1,$2,$3); my $on=(" $ENV{SECTIONS} " =~ / \Q$s\E /) ? 1 : 0; ($n ? !$on : $on) ? $b : "" }gse' "$1" | perl -0pe 's/^##+ [^\n]+\n\n(?=##? |\z)//mg; s/\n{3,}/\n\n/g' | perl -pe "s|\{\{SECTIONS\}\}|${SECTIONS:-none}|g; s|\{\{MODE\}\}|$MODE|g; s|\{\{TRACKER\}\}|$TRACKER|g; s|\{\{LINEAR\}\}|$LIN|g; s|\{\{BASE\}\}|$BASE|g; s|\{\{LAYERS\}\}|${LAYERS:-none}|g; s|\{\{RELEASE\}\}|${RELEASE:-none}|g; s|\{\{COMMITS\}\}|$COMMITS|g"; }
   log "main   CLAUDE.md ($MODE, $TRACKER), /task /next /roster, PM-routing"
   if [ "$DRY" != 1 ]; then
     for c in task next roster; do mkdir -p "$DEST/skills/$c"; fill "$SRC/claude/commands/$c/SKILL.md" > "$DEST/skills/$c/SKILL.md"; done
-    cp "$SRC/templates/PM-routing.md" "$DEST/PM-routing.md"
+    fill "$SRC/templates/PM-routing.md" > "$DEST/PM-routing.md"
     mkdir -p "$DEST/templates"
     cp "$SRC/templates/integration-plan.md" "$DEST/templates/"
     fill "$SRC/templates/AGENTS-roster-sections.md" > "$DEST/templates/AGENTS-roster-sections.md"
@@ -165,12 +183,12 @@ if [ "$GLOBAL" = 0 ]; then
 fi
 
 [ "$DRY" = 1 ] && exit 0
-printf 'repo=%s\nref=%s\nsha=%s\nprofile=%s\nfigma_server=%s\nlayers=%s\nrelease=%s\nmode=%s\ntracker=%s\n' "$REPO" "$REF" "$SHA" "$PROFILE" "$FIGMA" "$LAYERS" "$RELEASE" "$MODE" "$TRACKER" > "$DEST/.techne.lock"
+printf 'repo=%s\nref=%s\nsha=%s\nprofile=%s\nfigma_server=%s\nlayers=%s\nrelease=%s\nmode=%s\ntracker=%s\nsections=%s\n' "$REPO" "$REF" "$SHA" "$PROFILE" "$FIGMA" "$LAYERS" "$RELEASE" "$MODE" "$TRACKER" "$SECTIONS" > "$DEST/.techne.lock"
 na=$(ls "$DEST/agents" 2>/dev/null | wc -l | tr -d ' '); ns=$(ls "$DEST/skills" 2>/dev/null | wc -l | tr -d ' ')
 if [ "$INTERACTIVE" = 1 ]; then
-  printf '\n  \033[32m✓\033[0m Installed %s agents and %s skills into %s  \033[2m(profile %s, %s)\033[0m\n' "$na" "$ns" "$DEST" "$PROFILE" "${SHA:0:7}"
+  printf '\n  \033[32m✓\033[0m Installed %s agents and %s skills into %s  \033[2m(sections: %s · %s)\033[0m\n' "$na" "$ns" "$DEST" "${SECTIONS:-none}" "${SHA:0:7}"
 else
-  echo "Installed profile '$PROFILE' into $DEST (${SHA:0:7})"
+  echo "Installed sections '${SECTIONS:-none}' into $DEST (${SHA:0:7})"
 fi
 if [ "$GLOBAL" = 0 ]; then
   cat <<NEXT

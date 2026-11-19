@@ -16,7 +16,10 @@ Start the task named by the first word of **$ARGUMENTS** (the ID). Follow CLAUDE
 2. **Status** is `backlog` or `todo`. If it is `in-progress` or `review`, report who has it and stop.
 3. **Session limit:** count tasks in progress (task files' `Session:` fields, or Linear In Progress parents). Small mode: 0 others allowed. Large mode: fewer than 2 in total, counting this one.
 4. **Independence** (large mode, when another task is running): no shared files or Figma frames between the two tasks' subtasks. Otherwise queue it.
-5. **Ready inputs:** acceptance criteria present; product questions settled; an APPROVED integration plan if it touches an integration; design passes done if it builds UI from Figma.
+5. **Ready inputs:** acceptance criteria present; product questions settled; an APPROVED integration plan if it touches an integration.
+<!-- if:design -->
+6. **Design:** design passes done (design-reviewer `APPROVE`) if it builds UI from Figma.
+<!-- endif -->
 
 If any check fails: report `BLOCKED: <ID>` with each failing check and what unblocks it (e.g. "A2 in review, PR #14 open"), suggest `/next`, and stop. Change nothing.
 
@@ -28,9 +31,9 @@ Start here only if this session is fresh: this command is the first thing in it,
 ## 4. Start it
 1. Mark it started: locally, `Status: in-progress` and `Session: local`. On Linear: Backlog → Todo (only you do this); the subagents move it to In Progress.
 2. Large mode: create the task branch from an up-to-date `{{BASE}}` (Linear: the issue's branch name). Small mode: stay on the current branch.
-3. Break the task into subtasks if it has none: one agent and one role each, at most ~3 files, with IDs `<ID>.1`, `<ID>.2`… Write them to the task file or as Linear sub-issues before delegating.
+3. Break the task into subtasks if it has none, using only installed agents (`ls .claude/agents`); subtasks no agent covers are yours: one agent and one role each, at most ~3 files, with IDs `<ID>.1`, `<ID>.2`… Write them to the task file or as Linear sub-issues before delegating.
 4. Read `.claude/PM-routing.md` if it is not already in context. Write the contract. Delegate subtasks in pipeline order: independent subtasks in parallel, dependent ones in sequence. Every work order states `Commit: yes` (large) or `Commit: no` (small), plus the Linear ID if any.
-5. Finish:
-   - **Small:** tester → code-reviewer. Then stop with a summary of the changed files and a **suggested commit message**.
-   - **Large:** full QA → final-reviewer `READY` → push → open the PR. Locally, set `Status: review`; on Linear, the issue stays In Review.
+5. Finish with the **Gates** in CLAUDE.md for this mode (only the installed sections run).
+   - **Small:** then stop with a summary of the changed files and a **suggested commit message**.
+   - **Large:** then push and open the PR. Locally, set `Status: review`; on Linear, the issue stays In Review.
 6. End the session with the result and the next step: `/next` in a fresh session.

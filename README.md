@@ -115,18 +115,39 @@ Run from the project root:
 curl -fsSL https://raw.githubusercontent.com/mfan88/techne/main/install.sh | bash
 ```
 
-The installer walks through these questions (arrow keys, space, enter):
+The installer first asks how you want to choose your agents.
+
+**Set workflow** recommends a team for what you are building. Every section question includes an opt-out:
 
 1. **What are you building?** Web app, React Native/Expo, Flutter, iOS (Swift), desktop, ML/Python service, Docker image or quick tool, or a custom mix of stacks
-2. **Design in Figma?** Adds the eight design agents
-3. **Third-party APIs or sign-in?** Adds the plan-gated integration agents
-4. **Release targets:** which stores, or whether to ship a Docker image (skipped for websites)
-5. **Commits:** agents commit and open PRs (team mode), or you review and commit each task (solo mode)
-6. **Tasks:** local task files, or Linear (and your team key)
-7. **Release credentials:** add them now or later
-8. **Existing CLAUDE.md:** replace it (backup kept) or keep it
+2. **Design section:** the eight Figma agents, or opt out
+3. **API section:** the plan-gated integration agents, or opt out
+4. **Core sections:** Build, Testing, Review and Docs, all ticked by default; untick any to opt out
+5. **Release section:** the target for your project type (which stores, Docker image, …), or opt out
+
+**Manual** lets you tick the sections you want, then pick your stacks and, if you chose Release, your release targets.
+
+Both paths then ask:
+- **Commits:** agents commit and open PRs (team mode), or you review and commit each task (solo mode)
+- **Tasks:** local task files, or Linear (and your team key)
+- **Release credentials:** add them now or later
+- **Existing CLAUDE.md:** replace it (backup kept) or keep it
 
 The last screen shows the equivalent flags, so you can repeat the install without the menus.
+
+### Agent sections
+
+| Section | Agents | When it is left out |
+| --- | --- | --- |
+| `design` | app-bridge, ui-researcher, canvas-designer, ui-layout-engineer, type-designer, color-designer, a11y-designer, design-reviewer (and their skills) | The main agent describes UI in each contract instead |
+| `api` | api-integrator, integration-verifier | The integration plan is still required; builders implement it and the main agent runs its checklist |
+| `build` | component-, logic-, wiring- and feature-builder | The main agent writes the code itself, one contract-sized subtask at a time |
+| `testing` | test-designer, test-optimizer, test-writer, tester, qa-reviewer | The main agent runs the project's analyze, lint and test commands; no new tests unless asked |
+| `review` | code-reviewer, final-reviewer | The main agent checks acceptance, stray files and merge conflicts itself before the PR |
+| `docs` | docs-writer | Whoever builds the slice adds the changelog line |
+| `release` | release-manager (installed by `--release`) | No release automation |
+
+The installer writes your sections into `CLAUDE.md`, `.claude/PM-routing.md`, `AGENTS.md` and `/task`. It removes instructions for missing sections and adds the fallback for each one, so the workflow skips those steps instead of waiting on an agent that isn't there.
 
 ### Flags (CI, scripts, or skipping the menus)
 
@@ -141,7 +162,7 @@ git clone https://github.com/mfan88/techne ~/techne
 
 | Option | Meaning |
 | --- | --- |
-| `--profile LIST` | Comma-separated: `core` (build, QA, gate), `design` (Figma team and its skills), `integrations` (default: everything) |
+| `--sections LIST` | Comma-separated: `design`, `api`, `build`, `testing`, `review`, `docs` (default: all six). `core` = build,testing,review,docs and `integrations` = api still work. `--profile` is an alias |
 | `--layers LIST` | Stack presets, written to `.claude/LAYERS.md` |
 | `--release LIST` | `ios-asc`, `android-play`, `expo-eas`, `desktop-gha`, `docker-ghcr`. Adds release-manager and prompts for credentials. Omit for websites |
 | `--mode small\|large` | Commit and concurrency model (default `large`) |
@@ -160,19 +181,21 @@ git clone https://github.com/mfan88/techne ~/techne
 
 ```bash
 # Next.js web app (no release automation)
-… --profile core,design,integrations --layers react-next
+… --sections core,design,api --layers react-next
 # Expo app, tasks in Linear
-… --profile core,design,integrations --layers react-native --release expo-eas --tracker linear --linear-team ENG
+… --sections core,design,api --layers react-native --release expo-eas --tracker linear --linear-team ENG
 # Flutter app shipping to both stores
-… --profile core,design,integrations --layers flutter --release ios-asc,android-play
+… --sections core,design,api --layers flutter --release ios-asc,android-play
 # Native iOS app
-… --profile core,design,integrations --layers swift --release ios-asc
+… --sections core,design,api --layers swift --release ios-asc
 # Desktop app (Qt, Electron, Tauri)
-… --profile core,integrations --release desktop-gha
+… --sections core,api --release desktop-gha
 # ML inference API in a container
-… --profile core,integrations --layers pytorch-ml,docker --release docker-ghcr
+… --sections core,api --layers pytorch-ml,docker --release docker-ghcr
 # Small Docker tool you commit yourself
-… --profile core --layers docker --release docker-ghcr --mode small
+… --sections core --layers docker --release docker-ghcr --mode small
+# Builders and review only; you run the tests yourself
+… --sections build,review --layers react-next
 ```
 
 ### What gets installed
@@ -180,7 +203,7 @@ git clone https://github.com/mfan88/techne ~/techne
 ```
 CLAUDE.md                       main-agent spec (your old one is kept as CLAUDE.md.bak-<timestamp>)
 AGENTS.md                       created from a template if missing: project facts the agents read
-.claude/agents/                 the subagents in your profiles
+.claude/agents/                 the subagents in your sections
 .claude/skills/                 bundled skills + /task, /next, /roster
 .claude/LAYERS.md               stack presets
 .claude/PM-routing.md           routing, contracts, pipelines, escalation (read on demand)
@@ -224,7 +247,7 @@ Re-run the installer to update. It overwrites techne's files and leaves your `AG
 
 ## Customizing
 
-- **Add an agent:** drop a Markdown file with Claude Code subagent frontmatter in `agents/` and add its name to a profile. Keep it narrow, give it an explicit tool allowlist, a stop condition, and a short report format.
+- **Add an agent:** drop a Markdown file with Claude Code subagent frontmatter in `agents/` and add its name to a section file in `profiles/`. Keep it narrow, give it an explicit tool allowlist, a stop condition, and a short report format.
 - **Add a stack:** copy a file in `layers/` and fill in the component, logic and wiring rows, the contract format, the rules and the QA section.
 - **Add a release target:** add `release/recipes/<target>.md`, plus its prompts in `release/release-setup.sh`.
 - **Change models:** edit the agent's `model` and `effort`, or have the main agent override them per call. Model choices are explained in [ROSTER.md](ROSTER.md).
@@ -236,7 +259,7 @@ agents/            subagent definitions
 skills/            skills the design agents use (accessibility, color, layout, typography, writing, UI, interface review)
 claude/            CLAUDE.md template and the /task, /next, /roster commands
 layers/            stack presets
-profiles/          install profiles
+profiles/          one file per agent section
 templates/         PM routing, integration plan, AGENTS.md sections
 release/           release recipes and the credential setup script
 install.sh         the installer

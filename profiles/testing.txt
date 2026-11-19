@@ -1,0 +1,6 @@
+# Testing: plan, prune, write and run tests, then review them.
+test-designer
+test-optimizer
+test-writer
+tester
+qa-reviewer

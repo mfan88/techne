@@ -27,7 +27,8 @@ If `--write-tree` is unsupported (git older than 2.38), check in a throwaway wor
 
 ## 2. Evidence is current
 - The tester's latest `sha` equals `git rev-parse --short HEAD`, with `RESULT: PASS`. Otherwise `NOT READY: tests not run on HEAD`.
-- code-reviewer and qa-reviewer approvals cover the last commit of every slice (`git log --format=%h -- <slice paths>`). No open `BLOCKER`, `BUG`, `QUESTION`, `CONTRACT CHANGE`, `MISMATCH` or `PLAN GAP`.
+- If the brief says the testing section is not installed, the evidence is the main agent's check output (commands and results) recorded at the current HEAD instead of a tester report, and acceptance evidence may be a code location plus a check or smoke result instead of a test ID.
+- The approvals of the installed reviewers (code-reviewer, and qa-reviewer when testing is installed) cover the last commit of every slice (`git log --format=%h -- <slice paths>`). No open `BLOCKER`, `BUG`, `QUESTION`, `CONTRACT CHANGE`, `MISMATCH` or `PLAN GAP`.
 
 ## 3. The task is actually done
 For each acceptance criterion, find concrete evidence: the test ID that proves it, plus the code location (`path:line`), or a smoke-run output line. A report claiming it is not evidence; check with targeted `grep`/`Read`. A criterion with no test needs an explicit reason in a report, or it fails.
